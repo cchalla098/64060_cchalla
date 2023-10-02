@@ -1,0 +1,256 @@
+---
+title: "FML_Assignment_2"
+author: "Chakri"
+date: "2023-09-28"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(class)
+library(caret)
+library(e1071)
+
+```
+
+#importing the data from the directory
+```{r}
+uni_bank.df <- read.csv("H:\\Kent Sem-1\\FML\\FML_class\\UniversalBank.csv")
+#uni_bank.df
+```
+
+#idnetifying the rows and columns and head and tail of the data
+```{r}
+dim(uni_bank.df)
+t(t(names(uni_bank.df)))
+head(uni_bank.df)
+tail(uni_bank.df)
+
+```
+#Drop unnecessary rows like ID and Zip
+```{r}
+uni_bank.df <- uni_bank.df[,-c(1,5)]
+```
+
+#Categorical varables will be converted as factor(ie,. Education) as mentioned in the question
+
+```{r}
+uni_bank.df$Education <- as.factor(uni_bank.df$Education)
+```
+
+#now converting the Education into dummy variables
+
+```{r}
+groups <- dummyVars(~., data = uni_bank.df)
+#the new data frame is named as modified universal bank data
+uni_bank.m.df <- as.data.frame(predict(groups,uni_bank.df))
+```
+
+#splitting the data for training data(60%) and validation data(remaining 40%)
+
+```{r}
+#it is important to ensure that that we get the same sample if we return the code multiple times
+set.seed(7)
+#dividing the data into 60% training data and remaining data to validation
+train.data <- sample(row.names(uni_bank.m.df),0.6*dim(uni_bank.m.df)[1])
+valid.data <- setdiff(row.names(uni_bank.m.df),train.data)
+
+#apply the model
+#all the variables are taking in after the seperated comma
+train.df <- uni_bank.m.df[train.data,]
+valid.df <- uni_bank.m.df[valid.data,]
+t(t(names(train.df)))
+```
+
+#normalizing the data
+```{r}
+train.norm.df <- train.df[,-10]
+valid.norm.df <- valid.df[,-10]#personal income is the 10th variable
+
+norm.values <- preProcess(train.df[,-10], method = c("center","scale"))
+
+#mean and standard deviation is coming from the train data
+
+train.norm.df <- predict(norm.values,train.df[,-10])
+valid.norm.df <- predict(norm.values,valid.df[,-10])
+
+```
+
+#1. Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 =1, Education_3 = 0, Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1, and Credit Card = 1. Perform a k-NN classification with all predictors except ID and ZIP code using k = 1. Remember to transform categorical predictors with more than two categories into dummy variables first. Specify the success class as 1 (loan acceptance), and use the default cutoff value of 0.5. How would this customer be classified?
+
+
+#creating the new customer and with knn-prediction
+```{r}
+new_customer <- data.frame(Age = 40, 
+Experience = 10, 
+Income = 84, 
+Family = 2, 
+CCAvg = 2, 
+Education.1 = 0, 
+Education.2 = 1, 
+Education.3 = 0, 
+Mortgage = 0, 
+Securities.Account = 0, 
+CD.Account = 0, 
+Online = 1,
+CreditCard = 1
+)
+```
+
+
+#now normalize the data for the new customer
+```{r}
+new.cust.norm <- new_customer
+new.cust.norm <- predict(norm.values,new.cust.norm)
+```
+
+
+```{r}
+knn.pred1 <- class::knn(train= train.norm.df, 
+                        test = new.cust.norm, 
+                        cl= train.df$Personal.Loan, k=1 )
+knn.pred1
+
+```
+
+#2.What is a choice of k that balances between overfitting and ignoring the predictor information?
+
+```{r}
+accuracy.df <- data.frame(k= seq(1,15,1), overallaccuracy= rep(0,15))
+for(i in 1:15){
+  knn.pred <- class::knn(train=train.norm.df, test = valid.norm.df, cl= train.df$Personal.Loan, k=i)
+  accuracy.df[i,2] <- confusionMatrix(knn.pred, as.factor(valid.df$Personal.Loan), positive= "1")$overall[1]
+}
+
+which(accuracy.df[,2]== max(accuracy.df[,2]))
+plot(accuracy.df$k,accuracy.df$overallaccuracy,col="red")
+```
+
+
+#3. Show the confusion matrix for the validation data that results from using the best k?
+
+```{r}
+
+knn.pred2 <- class::knn(train = train.norm.df, test = valid.norm.df, cl= train.df$Personal.Loan, k=3)
+con.mat <-confusionMatrix(table(knn.pred2,as.factor(valid.df$Personal.Loan)))
+con.mat
+
+
+```
+#4. Consider the following customer: Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1 and Credit Card = 1. Classify the customer using the best k.
+
+```{r}
+new_customer1 <- data.frame(Age = 40, 
+                            Experience = 10, 
+                            Income = 84, 
+                            Family = 2, 
+                            CCAvg = 2, 
+                            Education.1 = 0, 
+                            Education.2 = 1, 
+                            Education.3 = 0, 
+                            Mortgage = 0, 
+                            Securities.Account = 0, 
+                            CD.Account = 0, 
+                            Online = 1,
+                            CreditCard = 1)
+
+new.cust.norm1 <- new_customer1
+new.cust.norm1 <- predict(norm.values,new.cust.norm1)
+
+knn.pred3 <- class::knn(train = train.norm.df, test = new.cust.norm1, cl= train.df$Personal.Loan,k= 3)
+knn.pred3
+```
+
+#5.Repartition the data, this time into training, validation, and test sets (50% : 30% : 20%). Apply the k-NN method with the k chosen above. Compare the confusion matrix of the test set with that of the training and validation sets. Comment on the differences and their reason.
+
+
+#it is important to ensure that that we get the same sample if we return the code multiple times
+#splitting the data to training(50%), validation(30%) and testing(remaining 20%)
+```{r}
+set.seed(26)
+train.data1 <- sample(row.names(uni_bank.m.df),0.5*dim(uni_bank.m.df)[1])
+train.df1 <- uni_bank.m.df[as.numeric(train.data1),]
+
+valid.data0 <- setdiff(row.names(uni_bank.m.df),train.data1)
+valid.df0 <- uni_bank.m.df[as.numeric(valid.data0),]
+valid.data1 <- sample(row.names(valid.df0),0.6*dim(valid.df0)[1])
+test.data1 <- setdiff(row.names(valid.df0),valid.data1)
+
+valid.df1 <- uni_bank.m.df[valid.data1,]
+test.df1 <- uni_bank.m.df[test.data1,]
+
+t(t(names(train.df1)))
+```
+
+
+#normalizing the data
+```{r}
+
+train.norm.df1 <- train.df1[,-10]
+valid.norm.df1 <- valid.df1[,-10]
+test.norm.df1 <- test.df1[,-10]
+
+norm.values1 <- preProcess(train.df1[,-10], method = c("center","scale"))
+
+train.norm.df1 <- predict(norm.values1,train.df1[,-10])
+valid.norm.df1 <- predict(norm.values,valid.df1[,-10])
+test.norm.df1 <- predict(norm.values1,test.df1[,-10])
+
+```
+
+
+#confusion matrix for the training data
+```{r}
+
+knn.pred4 <- class::knn(train = train.norm.df1,
+                        test = train.norm.df1,
+                        cl= train.df1$Personal.Loan, k= 3)
+knn.pred4
+
+con.mat4 <- confusionMatrix(knn.pred4, as.factor(train.df1$Personal.Loan))
+con.mat4
+
+
+```
+From the training data shows the model ability to learn from the training data with highest accuracy and sensitivity results in overfitting.
+
+
+
+#confusion matrix for the validation data
+```{r}
+
+knn.pred5 <- class::knn(train = train.norm.df1,
+                        test = valid.norm.df1,
+                        cl= train.df1$Personal.Loan, k= 3)
+knn.pred5
+
+con.mat5 <- confusionMatrix(knn.pred5, as.factor(valid.df1$Personal.Loan))
+con.mat5
+
+```
+From the validation data where the model performs with other than training data/unseen data maintaining with high accuracy but slightly reduced specificity.
+
+
+
+#confusion matrix for the testing data
+```{r}
+
+knn.pred6 <- class::knn(train = train.norm.df1,
+                        test = test.norm.df1,
+                        cl= train.df1$Personal.Loan, k= 3)
+knn.pred6
+
+con.mat6 <- confusionMatrix(knn.pred6, as.factor(test.df1$Personal.Loan))
+con.mat6
+
+```
+From the test data where it confirms the real-world scenarios with high accuracy and sensitivity eventhough the specificity slightly reduced.
+
+Finally, the above model demonstrates good balance between overfitting and ignoring predictor information. it fits the training data and the model can take the knowledge from the training data and applying it to unseen data, and also the model is not only memorizing the data but instead learning the patterns that can be applied in real world scenarios
+
+

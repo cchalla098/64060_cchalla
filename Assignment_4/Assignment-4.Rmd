@@ -1,0 +1,235 @@
+---
+title: "FML_Assignment_4"
+author: "Chakri"
+date: "2023-10-29"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+1. Market capitalization (in billions of dollars)
+2. Beta
+3. Price/earnings ratio
+4. Return on equity
+5. Return on assets
+6. Asset turnover
+7. Leverage
+8. Estimated revenue growth
+9. Net profit margin
+10. Median recommendation (across major brokerages)
+11. Location of firm’s headquarters
+12. Stock exchange on which the firm is listed
+Use cluster analysis to explore and analyze the given dataset as follows: 
+
+i) Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on. 
+
+
+
+```{r}
+#loading the data of Pharmaceuticals
+p_data <- read.csv("H:\\Kent Sem-1\\FML\\FML_class\\Assignments\\Assignment4\\Pharmaceuticals.csv")
+head(p_data) #printing the first 6 rows of the dataset
+
+```
+
+
+```{r}
+#loading the required libraries
+library(tidyverse)    #data manipulation
+library(factoextra)#clustering algorithms and visualization
+library(ISLR)
+library(cluster)
+```
+
+
+#gathering only the numerical variables that are from 3 to 11
+```{r}
+df_p.data <- p_data[,c(3:11)]
+#summary of the data
+summary(df_p.data)
+```
+#The above variables describe the financial metrics like investment potential, and evaluate between companies and to find out the risk factors that are affecting the investments in a particular company.
+
+
+
+#we normalize the data such that each variable can have equal domination with one another
+```{r}
+#scaling the data frame (Z-score)/ normalizing the data with scale function
+df_phar.data <- scale(df_p.data)
+
+```
+
+
+#By using Elbow method for the cluster analysis by determining the number of clusters.
+```{r}
+fviz_nbclust(df_phar.data, kmeans, method = "wss")
+
+```
+
+#from the above graph we are unable to determine the number of clusters accurately for that we need to do by method called silhoulette.
+
+
+```{r}
+fviz_nbclust(df_phar.data, kmeans, method = "silhouette")
+
+```
+
+#the above analysis measures that how similar of the object within its cluster compared to across the clusters.
+#from the above graph the most accurate number of clusters is 5
+
+
+
+```{r}
+set.seed(96441)
+k.means <- kmeans(df_phar.data, centers = 5, nstart = 25)  #k=4, randomly pick the starting centeroids 25 times
+k.means$centers
+k.means
+
+```
+#
+#Db scan  plot for 
+```{r}
+
+dbscan::kNNdistplot(df_p.data, k=5)
+```
+
+```{r}
+#take the package dbscan from the dbscan
+db <- dbscan::dbscan(df_phar.data, eps = 40, minPts = 5) #perform clustering
+
+print(db)
+
+```
+```{r}
+#clusters for dbscan
+
+db$cluster
+```
+```{r}
+
+fviz_cluster(db,df_p.data)+ ggtitle("DBSCAN PLOT")
+```
+#it has only one cluster and it is highly affect for interpreting the results
+
+
+```{r}
+hc <- hclust(dist(df_p.data), method = "complete")
+hc
+plot(hc, main = "Dendrogram of Hierarchial Clustering")
+
+```
+
+
+```{r}
+plot(hc,cex= 0.75, main="Dendrogram of Hierarchial Clustering")
+rect.hclust(hc, k=5, border = 1:5)
+
+
+```
+
+#From the above interpretation k-means will be used over the DBSCAN and hierarchial because it has more clusters and identified patterns/characteristics in variables and grouping the data and it provides in depth analysis of financial threats and profits that can develop the large, medium and small scale industries to easily interpret the data. DBSCAN will applicable only in collude points or in a crowd points where as in heirarchial few clusters has only few points and might be affect with other business data.
+
+
+
+
+
+
+#TO visualize the five clusters
+```{r}
+fviz_cluster(k.means, df_phar.data)
+
+```
+#Cluster 1 represents large companies with strong profitability and high leverage 
+#Cluster 2 represents medium-sized companies high profitability and low leverage
+#Cluster 3 represents medium-sized companies moderate profitability and low leverage
+#Cluster 4 represents small-sized companies with low profitability and leverage
+#Cluster 5 represents small-sized companies with moderate profitability and high leverage
+
+
+#interpretation of Clusters
+#Cluster 1- As it represents strong profit and leverage investors are more confident in these prospects where as the most investors will invest in these companies
+#CLuster 2- As it represents high profit and low leverage lower median recommendation than cluster 1 but they can be useful/potential in their growth
+#Cluster 3- Represents low profit and high revenue growth and moderate median recommendations might be the investors put an interest and excited to invest eventhough it is risk
+#Cluster 4- Represents low profit and leverage and lower median recommendation than cluster 2 but they might offer potential and growth in their fields
+#Cluster 5- Represents moderate profit and high leverage but it has highest revenue growth of these companies are good.
+
+
+#K-means cluster analysis--> by Fitting the data with 5 clusters
+```{r}
+
+fit <- kmeans(df_phar.data, 5)
+#finding the mean value of all numerical variables for each of the five clusters
+aggregate(df_p.data, by=list(fit$cluster),FUN=mean)
+```
+
+
+
+
+
+```{r}
+#here the dist is to compute the distance matrix by taking a data frame as an input
+#the below distance is called euclidean distance
+dist_df <- dist(df_phar.data, method = "euclidean")
+#computing and visualizing the distance matrix
+fviz_dist(dist_df)
+```
+
+#the above graph indicates that there are two varaibles that are x values indicates market capitalization and y values indicate median recommendation. so, therefore the median recommendation is depends on the markent capitalization.
+#And the above graph or distance matrix is highly correlated because the hi
+#the above matrix shows that distance between each pair of rows in the dataframe. the darkest color which is above 6 indicates the greater distance between the two rows that means for higher the market capitalization the less the median recommendation and vice versa
+
+2. Interpret the clusters with respect to the numerical variables used in forming the clusters. Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters)
+
+```{r}
+rem_data <- p_data[12:14]
+rem_data$Clusters <- k.means$cluster
+ggplot(rem_data, aes(factor(Clusters), fill= Median_Recommendation))+ geom_bar(position='dodge')+labs(x='Clusters')
+
+```
+#from the above graph of the median recommendation there is a high possibility that the  hold ones are in cluster one and as well has strong buy which the investors of large group will come into this cluster
+#from the second cluster the hold and moderate buy seems to be equal that meand it is moderate profit with leverage
+#from the third cluster there are both hold which is to be expected some growth and high risk and the investors will give less interest in it
+#from the fourth cluster there are hold and moderate profit and which is very less compared to other clusters
+#from the fifth cluster there are moderate profit and high leverage
+
+
+
+```{r}
+ggplot(rem_data, aes(factor(Clusters), fill= Location))+ geom_bar(position='dodge')+labs(x='Clusters')
+
+
+```
+#from the all the clusters united states is the number one to spend or to get the most profit and high leverage in every cluster
+#as for the germany and switzerland it has low profit and negative revenue growth compared to other countries
+#Ireland has the highest revenue growth that is highest from all over the country with moderate profit
+#where as france has high revenue but low profit compared to other countries
+
+
+```{r}
+ggplot(rem_data, aes(factor(Clusters), fill= Exchange))+ geom_bar(position='dodge')+labs(x='Clusters')
+
+
+```
+#from the above graph NYSE exchange is the highest stock markets and it is well known in all over the countries
+#where as AMEX and NASDAQ is only included in third cluster that means germany is the one using this exchange
+#interpretation of clusters based on the remaining categorical varibles from 10 to 12
+
+
+
+
+3. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+
+#Cluster-1 Profitable companies
+#Cluster-2 High growth and potential companies
+#Cluster-3 Low Revenue companies
+#Cluster-4 Value companies
+#Cluster-5 Growth and Leveraged companies
+
+
